@@ -128,6 +128,7 @@ postBtn.addEventListener('click', async () => {
   const title   = document.getElementById('postTitle').value.trim();
   const excerpt = document.getElementById('postExcerpt').value.trim();
   const date    = document.getElementById('postDate').value.trim();
+  const artist  = document.getElementById('postArtist').value.trim();
   if (!title) { postStatus.textContent = '제목을 입력해주세요.'; return; }
   postBtn.disabled = true;
   postStatus.textContent = '—';
@@ -154,9 +155,10 @@ postBtn.addEventListener('click', async () => {
   const { error } = await sb.from('archive_posts').insert({
     title,
     excerpt: excerpt || null,
-    image_url: image_urls[0] || null,   // 하위호환
+    image_url: image_urls[0] || null,
     image_urls: image_urls,
     post_date: date || null,
+    artist: artist || null,
     order_index: minOrder - 1
   });
 
@@ -167,7 +169,7 @@ postBtn.addEventListener('click', async () => {
   }
 
   postStatus.textContent = '올라갔습니다.';
-  ['postTitle','postExcerpt','postDate'].forEach(id => document.getElementById(id).value = '');
+  ['postTitle','postExcerpt','postDate','postArtist'].forEach(id => document.getElementById(id).value = '');
   postPhoto.value = '';
   postFileName.textContent = '';
   filteredBlobs = [];
@@ -207,7 +209,7 @@ function renderItem(post, i, total) {
     <div class="list-item" data-id="${escapeAttr(post.id)}">
       <span class="list-item-meta">${escapeHtml(meta)}</span>
       <span class="list-item-title">${escapeHtml(post.title)}${adminControls}</span>
-      <span class="list-item-artist">suheeson</span>
+      <span class="list-item-artist">${escapeHtml(post.artist || 'mikihoo')}</span>
     </div>`;
 }
 
