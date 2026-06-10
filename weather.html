@@ -27,7 +27,7 @@
   <main class="weather-main">
 
     <!-- 왼쪽: 입력 폼 -->
-    <div class="weather-col-left">
+    <div class="weather-col-left" data-lenis-prevent>
       <section class="weather-intro">
         <h2>당신의 날씨</h2>
         <div class="weather-now" id="weatherNow"></div>
@@ -61,7 +61,7 @@
     </div>
 
     <!-- 오른쪽: 타임라인 -->
-    <div class="weather-col-right">
+    <div class="weather-col-right" data-lenis-prevent>
 
       <!-- 어드민 로그인 (admin 모드에서만 표시) -->
       <div id="weatherAdminLogin" style="display:none; margin-bottom:2rem; padding-bottom:2rem; border-bottom:1px solid var(--border);">

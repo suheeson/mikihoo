@@ -16,7 +16,7 @@
     .artist-card {
       position: relative;
       overflow: hidden;
-      cursor: default;
+      cursor: pointer;
     }
 
     .artist-card img {
@@ -30,7 +30,7 @@
     }
 
     .artist-card:hover img {
-      filter: saturate(0.3) brightness(0.85);
+      filter: saturate(0.3) brightness(0.88);
     }
 
     .artist-overlay {
@@ -76,7 +76,6 @@
       color: rgba(232, 228, 220, 0.85);
     }
 
-    /* no-photo fallback */
     .artist-card.no-photo {
       background: #161613;
     }
@@ -89,6 +88,97 @@
         grid-template-columns: 1fr !important;
       }
     }
+
+    /* ── Artist Modal ── */
+    .artist-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: rgba(10, 10, 8, 0.88);
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    .artist-modal.open {
+      display: flex;
+    }
+
+    .artist-modal-inner {
+      position: relative;
+      background: #141412;
+      border: 1px solid var(--border);
+      max-width: 520px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .artist-modal-photo {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+      filter: saturate(0.2) brightness(0.8);
+      display: block;
+      flex-shrink: 0;
+    }
+
+    .artist-modal-body {
+      padding: 2rem 2.2rem 2.4rem;
+    }
+
+    .artist-modal-name {
+      font-family: 'EB Garamond', serif;
+      font-size: 2rem;
+      font-weight: 400;
+      color: #e8e4dc;
+      letter-spacing: 0.02em;
+      margin-bottom: 1rem;
+    }
+
+    .artist-modal-bio {
+      font-size: 0.88rem;
+      color: var(--text-dim);
+      line-height: 1.8;
+      margin-bottom: 1.4rem;
+      white-space: pre-line;
+    }
+
+    .artist-modal-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem 1.2rem;
+    }
+
+    .artist-modal-link {
+      font-family: 'EB Garamond', serif;
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(200, 196, 188, 0.55);
+      transition: color 0.5s ease;
+    }
+
+    .artist-modal-link:hover {
+      color: #e8e4dc;
+    }
+
+    .artist-modal-close {
+      position: absolute;
+      top: 1rem;
+      right: 1.2rem;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 1.4rem;
+      cursor: pointer;
+      line-height: 1;
+      z-index: 10;
+      transition: color 0.3s;
+    }
+    .artist-modal-close:hover { color: var(--text); }
   </style>
 </head>
 <body>
@@ -109,10 +199,23 @@
     <a href="index.html?admin" class="footer-admin" style="display:none;">관리</a>
   </footer>
 
+  <!-- Artist Modal -->
+  <div class="artist-modal" id="artistModal">
+    <div class="artist-modal-inner">
+      <button class="artist-modal-close" id="artistModalClose">×</button>
+      <img class="artist-modal-photo" id="artistModalPhoto" src="" alt="" />
+      <div class="artist-modal-body">
+        <div class="artist-modal-name" id="artistModalName"></div>
+        <div class="artist-modal-bio" id="artistModalBio"></div>
+        <div class="artist-modal-links" id="artistModalLinks"></div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const artists = [
-      { name: "", photo: "", links: [{ label: "", url: "" }] },
-      { name: "", photo: "", links: [{ label: "", url: "" }] },
+      { name: "", photo: "", bio: "", links: [{ label: "", url: "" }] },
+      { name: "", photo: "", bio: "", links: [{ label: "", url: "" }] },
     ];
 
     const grid = document.getElementById('artistsGrid');
@@ -121,10 +224,11 @@
 
     grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
 
-    artists.forEach(artist => {
+    artists.forEach((artist, idx) => {
       const card = document.createElement('div');
       card.className = 'artist-card' + (artist.photo ? '' : ' no-photo');
       card.style.height = height;
+      card.dataset.idx = idx;
 
       if (artist.photo) {
         const img = document.createElement('img');
@@ -156,13 +260,60 @@
         a.textContent = link.label;
         a.target = '_blank';
         a.rel = 'noopener noreferrer';
+        a.addEventListener('click', e => e.stopPropagation());
         linksEl.appendChild(a);
       });
       info.appendChild(linksEl);
       card.appendChild(info);
 
+      card.addEventListener('click', () => openArtistModal(artist));
       grid.appendChild(card);
     });
+
+    // ── Modal ──
+    const modal       = document.getElementById('artistModal');
+    const modalPhoto  = document.getElementById('artistModalPhoto');
+    const modalName   = document.getElementById('artistModalName');
+    const modalBio    = document.getElementById('artistModalBio');
+    const modalLinks  = document.getElementById('artistModalLinks');
+    const modalClose  = document.getElementById('artistModalClose');
+
+    function openArtistModal(artist) {
+      if (artist.photo) {
+        modalPhoto.src = artist.photo;
+        modalPhoto.style.display = 'block';
+      } else {
+        modalPhoto.style.display = 'none';
+      }
+      modalName.textContent = artist.name;
+      modalBio.textContent  = artist.bio || '';
+      modalBio.style.display = artist.bio ? 'block' : 'none';
+
+      modalLinks.innerHTML = '';
+      (artist.links || []).forEach(link => {
+        if (!link.label && !link.url) return;
+        const a = document.createElement('a');
+        a.className = 'artist-modal-link';
+        a.href = link.url;
+        a.textContent = link.label;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        modalLinks.appendChild(a);
+      });
+
+      modal.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeArtistModal() {
+      modal.classList.remove('open');
+      document.body.style.overflow = '';
+      modalPhoto.src = '';
+    }
+
+    modalClose.addEventListener('click', closeArtistModal);
+    modal.addEventListener('click', e => { if (e.target === modal) closeArtistModal(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeArtistModal(); });
   </script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
