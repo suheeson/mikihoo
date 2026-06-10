@@ -4,7 +4,7 @@
    GitHub Pages 배포 시 이 파일에 직접 키 입력
    (도메인 제한으로 키 노출 최소화)
 ───────────────────────────────────────── */
-const OW_KEY = 'YOUR_OPENWEATHER_API_KEY'; // ← 교체 필요
+const OW_KEY = '22e32b9735460bfc73f39f24811548cf';
 
 const SUPABASE_URL = 'https://bemcdwxyxdguhcrgkhth.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlbWNkd3h5eGRndWhjcmdraHRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMjMzOTgsImV4cCI6MjA5NjU5OTM5OH0.GrPUSR7EKSlOGXVI7gxQnwvQvwZBUcuOi2I9EsbrNxk';
