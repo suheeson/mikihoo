@@ -524,6 +524,20 @@ a { color: inherit; text-decoration: none; }
 .ctrl-btn:hover { color: var(--accent); border-color: var(--accent-dim); }
 .ctrl-btn:disabled { opacity: 0.2; cursor: default; }
 .delete-btn { color: #7a4040; border-color: #3a2020; }
+
+.tl-save-btn {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-family: 'EB Garamond', serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  padding: 0;
+  cursor: pointer;
+  transition: color 0.4s ease;
+  line-height: 1.5;
+}
+.tl-save-btn:hover { color: var(--accent); }
 .delete-btn:hover { color: #c46a6a; border-color: #7a4040; }
 
 /* ── Post Modal ── */
