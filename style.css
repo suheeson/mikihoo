@@ -18,7 +18,11 @@
   --hover-bg: #191917;
 }
 
-html { font-size: 21px; }
+html { font-size: 18px; }
+
+@media (max-width: 768px) {
+  html { font-size: 15px; }
+}
 
 body {
   background: var(--bg);
