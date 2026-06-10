@@ -51,10 +51,10 @@ async function fetchWeatherByCoords(lat, lon) {
 }
 
 async function getCoordsByIP() {
-  const res = await fetch('https://ipwho.is/');
+  const res = await fetch('https://ip-api.com/json?fields=lat,lon,status');
   const d = await res.json();
-  if (!d.success) throw new Error('ip lookup failed');
-  return { latitude: d.latitude, longitude: d.longitude };
+  if (d.status !== 'success') throw new Error('ip lookup failed');
+  return { latitude: d.lat, longitude: d.lon };
 }
 
 async function initWeather() {
