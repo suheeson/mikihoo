@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>미기후 — suheeson</title>
+  <title>미기후</title>
   <meta name="description" content="suheeson의 아카이브. 미기후." />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -17,9 +17,9 @@
     </nav>
   </header>
 
-  <main>
+  <main class="main-list">
 
-    <!-- 관리자 로그인 패널 (?admin 파라미터일 때 노출) -->
+    <!-- 관리자 패널 (?admin 일 때만 노출) -->
     <section class="admin-panel" id="adminPanel" style="display:none;">
       <div id="loginBox">
         <div class="admin-label">관리자</div>
@@ -56,24 +56,22 @@
           <div class="file-name" id="postFileName"></div>
           <img class="preview-img" id="postPreview" alt="" />
         </div>
-        <div style="display:flex; gap:1rem; align-items:center; flex-wrap:wrap;">
+        <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;">
           <button class="btn-submit" id="postBtn">올리다</button>
-          <button class="btn-submit" id="logoutBtn" style="border-color:var(--text-faint); color:var(--text-faint);">로그아웃</button>
+          <button class="btn-submit" id="logoutBtn" style="border-color:var(--text-faint);color:var(--text-faint);">로그아웃</button>
         </div>
         <div class="form-status" id="postStatus"></div>
       </div>
     </section>
 
-    <section class="archive">
-      <div class="archive-label">archive</div>
-      <div id="archiveList">
-        <p class="entries-empty" style="padding:2rem 0;">—</p>
-      </div>
-    </section>
+    <!-- 아카이브 리스트 -->
+    <div class="archive-list" id="archiveList">
+      <div class="list-empty">—</div>
+    </div>
 
   </main>
 
-  <footer>
+  <footer class="site-footer">
     <span>mikihoo &copy; 2026</span>
   </footer>
 
