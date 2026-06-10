@@ -111,6 +111,7 @@ let drawCtx      = null;
 let isDrawing    = false;
 let eraserMode   = false;
 let canvasReady  = false;
+let undoStack    = []; // ImageData 스냅샷 스택
 
 function initDrawCanvas() {
   if (canvasReady) return;
@@ -137,9 +138,15 @@ function getPos(e, canvas) {
   };
 }
 
+function saveSnapshot() {
+  undoStack.push(drawCtx.getImageData(0, 0, drawCanvas.width, drawCanvas.height));
+  if (undoStack.length > 30) undoStack.shift(); // 최대 30획
+}
+
 function startDraw(e) {
   if (!drawCtx) return;
   e.preventDefault();
+  saveSnapshot();
   isDrawing = true;
   const { x, y } = getPos(e, drawCanvas);
   drawCtx.beginPath();
@@ -185,8 +192,15 @@ eraserBtn && eraserBtn.addEventListener('click', () => {
   drawCanvas.style.cursor = 'cell';
 });
 
+const undoBtn = document.getElementById('undoBtn');
+undoBtn && undoBtn.addEventListener('click', () => {
+  if (!drawCtx || undoStack.length === 0) return;
+  drawCtx.putImageData(undoStack.pop(), 0, 0);
+});
+
 clearCanvasBtn && clearCanvasBtn.addEventListener('click', () => {
   if (!drawCtx) return;
+  saveSnapshot();
   drawCtx.fillStyle = '#0f0f0f';
   drawCtx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
 });
