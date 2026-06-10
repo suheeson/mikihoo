@@ -638,6 +638,8 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 768px) {
   .site-header { padding: 0 1.2rem; }
 
+  .footer-admin { display: none; }
+
   .weather-page { min-height: unset; }
 
   .weather-main {
