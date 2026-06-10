@@ -104,9 +104,11 @@ function applyRetroFilter(file) {
         px[i+2] = Math.min(255, Math.max(0, b + n));
       }
       ctx.putImageData(id, 0, 0);
-      canvas.toBlob(blob => { URL.revokeObjectURL(img.src); resolve(blob); }, 'image/jpeg', 0.88);
+      canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.88);
     };
-    img.src = URL.createObjectURL(file);
+    const reader = new FileReader();
+    reader.onload = e => { img.src = e.target.result; };
+    reader.readAsDataURL(file);
   });
 }
 
