@@ -279,10 +279,16 @@ a { color: inherit; text-decoration: none; }
 
 /* ── Weather Page: 2-column desktop layout ── */
 
+.weather-page {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 52px);
+}
+
 .weather-main {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  height: calc(100vh - 52px);
+  flex: 1;
 }
 
 .weather-col-left {
@@ -433,23 +439,21 @@ a { color: inherit; text-decoration: none; }
   color: var(--text-faint);
   letter-spacing: 0.14em;
   font-family: 'EB Garamond', serif;
-  opacity: 0.4;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
 .footer-admin {
-  font-size: 0.58rem;
+  font-size: 0.62rem;
   letter-spacing: 0.12em;
-  color: var(--text-faint);
+  color: var(--text-dim);
   font-family: 'EB Garamond', serif;
   font-style: italic;
-  opacity: 0.4;
-  transition: opacity 0.4s ease;
+  transition: color 0.4s ease;
 }
 
-.footer-admin:hover { opacity: 1; }
+.footer-admin:hover { color: var(--accent); }
 
 /* ── Grain ── */
 
@@ -644,9 +648,11 @@ body::after {
 @media (max-width: 768px) {
   .site-header { padding: 0 1.2rem; }
 
+  .weather-page { min-height: unset; }
+
   .weather-main {
     grid-template-columns: 1fr;
-    height: auto;
+    flex: none;
   }
 
   .weather-col-left {
@@ -657,7 +663,7 @@ body::after {
   }
 
   .weather-col-right {
-    padding: 2.4rem 1.4rem 6rem;
+    padding: 2.4rem 1.4rem 3rem;
     overflow-y: visible;
   }
 
