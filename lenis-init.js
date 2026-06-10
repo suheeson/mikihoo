@@ -1,8 +1,7 @@
 // Lenis smooth scroll — desktop only
 if (window.innerWidth > 768 && typeof Lenis !== 'undefined') {
   const lenis = new Lenis({
-    lerp: 0.7,
-    duration: 1.4,
+    lerp: 0.12,
     smoothWheel: true,
     smoothTouch: false,
   });
