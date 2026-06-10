@@ -126,4 +126,9 @@
   document.addEventListener('touchstart', e => {
     for (const t of e.touches) ripple(t.clientX, t.clientY);
   }, { passive: true });
+
+  // 모바일에서 관리 버튼 강제 숨김
+  if (window.innerWidth <= 768 || 'ontouchstart' in window) {
+    document.querySelectorAll('.footer-admin').forEach(el => el.style.display = 'none');
+  }
 })();
