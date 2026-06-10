@@ -10,6 +10,7 @@ const SUPABASE_URL = 'https://bemcdwxyxdguhcrgkhth.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlbWNkd3h5eGRndWhjcmdraHRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMjMzOTgsImV4cCI6MjA5NjU5OTM5OH0.GrPUSR7EKSlOGXVI7gxQnwvQvwZBUcuOi2I9EsbrNxk';
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const isAdmin = new URLSearchParams(location.search).has('admin');
 
 // ── DOM ──
 const weatherBar  = document.getElementById('weatherBar');
@@ -214,6 +215,7 @@ async function loadEntries() {
   }
 
   listEl.innerHTML = data.map(renderTimelineItem).join('');
+  if (isAdmin) bindDeleteEvents();
 }
 
 function renderTimelineItem(entry) {
@@ -221,11 +223,15 @@ function renderTimelineItem(entry) {
   const imgHtml = entry.image_url
     ? `<img class="tl-thumb" src="${escapeAttr(entry.image_url)}" alt="" loading="lazy" />`
     : '';
+  const deleteBtn = isAdmin
+    ? `<button class="ctrl-btn delete-btn tl-delete" data-id="${escapeAttr(entry.id)}">삭제</button>`
+    : '';
 
   return `
-    <div class="tl-item ${entry.image_url ? 'has-photo' : ''}">
+    <div class="tl-item ${entry.image_url ? 'has-photo' : ''}" data-id="${escapeAttr(entry.id)}">
       <div class="tl-left">
         <span class="tl-date">${date}</span>
+        ${deleteBtn}
       </div>
       <div class="tl-right">
         <span class="tl-nickname">${escapeHtml(entry.nickname)}</span>
@@ -234,6 +240,18 @@ function renderTimelineItem(entry) {
       </div>
     </div>
   `;
+}
+
+function bindDeleteEvents() {
+  listEl.querySelectorAll('.tl-delete').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      if (!confirm('삭제할까요?')) return;
+      const { error } = await sb.from('guestbook').delete().eq('id', btn.dataset.id);
+      if (error) { alert('삭제 실패: ' + error.message); return; }
+      await loadEntries();
+    });
+  });
 }
 
 function formatDate(iso) {
