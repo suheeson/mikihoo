@@ -1,5 +1,17 @@
 (function () {
-  if (sessionStorage.getItem('intro_done')) return;
+  function showPage() {
+    const pageContent = document.getElementById('pageContent');
+    if (pageContent) {
+      pageContent.style.transition = 'opacity 0.3s ease';
+      pageContent.style.opacity = '1';
+    }
+    document.body.style.overflow = '';
+  }
+
+  if (sessionStorage.getItem('intro_done')) {
+    showPage();
+    return;
+  }
   sessionStorage.setItem('intro_done', '1');
 
   // ── Overlay ──
@@ -180,25 +192,25 @@
       // Done — fade out overlay, fade in page content
       overlay.style.transition = 'opacity 0.3s ease';
       overlay.style.opacity = '0';
-      document.body.style.overflow = '';
-
-      // Fade in page
-      const pageContent = document.getElementById('pageContent');
-      if (pageContent) {
-        pageContent.style.transition = 'opacity 0.3s ease';
-        pageContent.style.opacity = '1';
-      }
-
-      setTimeout(() => {
-        overlay.style.display = 'none';
-      }, 320);
+      showPage();
+      setTimeout(() => { overlay.style.display = 'none'; }, 320);
     }
   }
 
+  // Safety fallback — always show page after 3s even if animation errors
+  const fallback = setTimeout(showPage, 3000);
+
   // Wait for font to load before starting
-  if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(() => requestAnimationFrame(tick));
-  } else {
+  const start = () => {
+    clearTimeout(fallback);
     requestAnimationFrame(tick);
+    // Re-register fallback after animation starts
+    setTimeout(showPage, T_TOTAL + 1000);
+  };
+
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(start);
+  } else {
+    start();
   }
 })();
