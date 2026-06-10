@@ -258,7 +258,6 @@ function renderTimelineItem(entry) {
     <div class="tl-item ${entry.image_url ? 'has-photo' : ''}" data-id="${escapeAttr(entry.id)}">
       <div class="tl-left">
         <span class="tl-date">${date}</span>
-        <button class="tl-save-btn" data-id="${escapeAttr(entry.id)}">저장</button>
         ${deleteBtn}
       </div>
       <div class="tl-right">
@@ -272,14 +271,6 @@ function renderTimelineItem(entry) {
 }
 
 function bindTimelineEvents() {
-  listEl.querySelectorAll('.tl-save-btn').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      const entry = entriesMap[btn.dataset.id];
-      if (entry) exportEntryCard(entry);
-    });
-  });
-
   if (!isAdmin) return;
   listEl.querySelectorAll('.tl-delete').forEach(btn => {
     btn.addEventListener('click', async e => {
@@ -295,64 +286,90 @@ function bindTimelineEvents() {
 }
 
 // ══════════════════════════════════════
-// 6. 카드 PNG 익스포트
+// 6. 채집하기
+// ══════════════════════════════════════
+
+const collectBtn = document.getElementById('collectBtn');
+if (collectBtn) {
+  collectBtn.addEventListener('click', async () => {
+    collectBtn.disabled = true;
+    collectBtn.textContent = '—';
+    try {
+      const { data, error } = await sb.from('guestbook').select('*');
+      if (error || !data || data.length === 0) { collectBtn.textContent = '채집하기'; collectBtn.disabled = false; return; }
+      const entry = data[Math.floor(Math.random() * data.length)];
+      await exportEntryCard(entry);
+    } catch (e) {
+      console.warn('collect error', e);
+    }
+    collectBtn.textContent = '채집하기';
+    collectBtn.disabled = false;
+  });
+}
+
+// ══════════════════════════════════════
+// 7. 카드 PNG 익스포트
 // ══════════════════════════════════════
 
 async function exportEntryCard(entry) {
   const SIZE = 1080;
+  const PAD  = 80;
   const canvas = document.createElement('canvas');
-  canvas.width = SIZE;
+  canvas.width  = SIZE;
   canvas.height = SIZE;
   const ctx = canvas.getContext('2d');
 
-  // 배경
   ctx.fillStyle = '#0f0f0f';
   ctx.fillRect(0, 0, SIZE, SIZE);
 
-  const halfY = SIZE / 2;
-
-  // 사진 (상단 절반)
+  // 비율 결정
+  const msgLen = (entry.message || '').length;
+  let photoRatio = 0;
   if (entry.image_url) {
+    if      (msgLen < 100) photoRatio = 0.6;
+    else if (msgLen < 200) photoRatio = 0.5;
+    else                   photoRatio = 0.4;
+  }
+  const photoH = Math.round(SIZE * photoRatio);
+  const textH  = SIZE - photoH;
+
+  // 사진
+  if (entry.image_url && photoH > 0) {
     await new Promise(resolve => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.onload = () => {
-        // 1:1 crop center
-        const aspect = img.naturalWidth / img.naturalHeight;
+        // center crop
         let sx = 0, sy = 0, sw = img.naturalWidth, sh = img.naturalHeight;
-        if (aspect > 1) { sw = img.naturalHeight; sx = (img.naturalWidth - sw) / 2; }
-        else            { sh = img.naturalWidth;  sy = (img.naturalHeight - sh) / 2; }
+        const targetAspect = SIZE / photoH;
+        const imgAspect    = sw / sh;
+        if (imgAspect > targetAspect) { sw = Math.round(sh * targetAspect); sx = (img.naturalWidth - sw) / 2; }
+        else                          { sh = Math.round(sw / targetAspect); sy = (img.naturalHeight - sh) / 2; }
 
-        // 임시 canvas에 그려서 픽셀 필터 적용
-        const tmp = document.createElement('canvas');
-        tmp.width = SIZE; tmp.height = halfY;
+        const tmp  = document.createElement('canvas');
+        tmp.width  = SIZE; tmp.height = photoH;
         const tctx = tmp.getContext('2d');
-        tctx.drawImage(img, sx, sy, sw, sh, 0, 0, SIZE, halfY);
+        tctx.drawImage(img, sx, sy, sw, sh, 0, 0, SIZE, photoH);
 
-        // saturate(0.2) brightness(0.75) — 픽셀 처리
-        const id = tctx.getImageData(0, 0, SIZE, halfY);
+        const id = tctx.getImageData(0, 0, SIZE, photoH);
         const px = id.data;
         for (let i = 0; i < px.length; i += 4) {
           const r = px[i], g = px[i+1], b = px[i+2];
-          // 채도 0.2: 그레이 쪽으로 80% 블렌드
           const gray = r * 0.299 + g * 0.587 + b * 0.114;
-          const nr = gray + (r - gray) * 0.2;
-          const ng = gray + (g - gray) * 0.2;
-          const nb = gray + (b - gray) * 0.2;
-          px[i]   = Math.min(255, nr * 0.75);
-          px[i+1] = Math.min(255, ng * 0.75);
-          px[i+2] = Math.min(255, nb * 0.75);
+          px[i]   = Math.min(255, (gray + (r - gray) * 0.2) * 0.75);
+          px[i+1] = Math.min(255, (gray + (g - gray) * 0.2) * 0.75);
+          px[i+2] = Math.min(255, (gray + (b - gray) * 0.2) * 0.75);
         }
         tctx.putImageData(id, 0, 0);
         ctx.drawImage(tmp, 0, 0);
 
-        // 사진 → 텍스트 그라데이션 페이드
-        const grad = ctx.createLinearGradient(0, halfY - 120, 0, halfY);
+        // fade into text area
+        const fadeH = Math.min(100, photoH * 0.2);
+        const grad  = ctx.createLinearGradient(0, photoH - fadeH, 0, photoH);
         grad.addColorStop(0, 'rgba(15,15,15,0)');
         grad.addColorStop(1, 'rgba(15,15,15,1)');
         ctx.fillStyle = grad;
-        ctx.fillRect(0, halfY - 120, SIZE, 120);
-
+        ctx.fillRect(0, photoH - fadeH, SIZE, fadeH);
         resolve();
       };
       img.onerror = resolve;
@@ -360,57 +377,59 @@ async function exportEntryCard(entry) {
     });
   }
 
-  // 텍스트 영역 (하단 절반)
-  const padX  = 72;
-  const textY = entry.image_url ? halfY + 60 : 180;
+  // 텍스트 시작 Y — 사진 없으면 세로 중앙 정렬에 가깝게
+  const textTop = photoH > 0 ? photoH + 52 : Math.round(SIZE * 0.22);
+
+  ctx.textAlign = 'left';
 
   // 닉네임
-  ctx.font = `400 36px 'EB Garamond', serif`;
+  ctx.font      = `400 38px 'EB Garamond', serif`;
   ctx.fillStyle = '#e8e4dc';
-  ctx.textAlign = 'left';
-  ctx.fillText(entry.nickname || '', padX, textY);
+  ctx.fillText(entry.nickname || '', PAD, textTop);
+
+  let curY = textTop + 48;
 
   // 날씨
   if (entry.weather_text) {
-    ctx.font = `300 24px 'EB Garamond', serif`;
+    ctx.font      = `400 26px 'EB Garamond', serif`;
     ctx.fillStyle = '#a8a89e';
-    ctx.fillText(entry.weather_text, padX, textY + 44);
+    ctx.fillText(entry.weather_text, PAD, curY);
+    curY += 52;
+  } else {
+    curY += 8;
   }
 
-  // 본문 (줄바꿈 처리)
-  const msgTop = textY + (entry.weather_text ? 100 : 60);
-  ctx.font = `300 30px 'Noto Serif KR', serif`;
+  // 본문
+  ctx.font      = `300 32px 'Noto Serif KR', serif`;
   ctx.fillStyle = '#c8c4bc';
-  wrapText(ctx, entry.message || '', padX, msgTop, SIZE - padX * 2, 46);
+  const lineH   = 32 * 1.6;
+  const maxW    = SIZE - PAD * 2;
+  curY = wrapText(ctx, entry.message || '', PAD, curY, maxW, lineH);
 
-  // 워터마크
-  ctx.font = `400 22px 'EB Garamond', serif`;
-  ctx.fillStyle = 'rgba(168,168,158,0.4)';
+  // 워터마크 (우측 하단 고정)
+  ctx.font      = `400 22px 'EB Garamond', serif`;
+  ctx.fillStyle = 'rgba(168,168,158,0.35)';
   ctx.textAlign = 'right';
-  ctx.fillText('mikihoo', SIZE - padX, SIZE - 56);
+  ctx.fillText('mikihoo', SIZE - PAD, SIZE - 52);
 
   // 그레인 오버레이
-  const grainCanvas = document.createElement('canvas');
-  grainCanvas.width = grainCanvas.height = 200;
-  const gctx = grainCanvas.getContext('2d');
-  const gid = gctx.createImageData(200, 200);
+  const gc = document.createElement('canvas');
+  gc.width = gc.height = 200;
+  const gctx = gc.getContext('2d');
+  const gid  = gctx.createImageData(200, 200);
   for (let i = 0; i < gid.data.length; i += 4) {
     const v = Math.random() * 255 | 0;
-    gid.data[i] = gid.data[i+1] = gid.data[i+2] = v;
-    gid.data[i+3] = 255;
+    gid.data[i] = gid.data[i+1] = gid.data[i+2] = v; gid.data[i+3] = 255;
   }
   gctx.putImageData(gid, 0, 0);
-  const pat = ctx.createPattern(grainCanvas, 'repeat');
   ctx.globalAlpha = 0.05;
-  ctx.fillStyle = pat;
+  ctx.fillStyle   = ctx.createPattern(gc, 'repeat');
   ctx.fillRect(0, 0, SIZE, SIZE);
   ctx.globalAlpha = 1;
 
   // 다운로드
   const date  = formatDate(entry.created_at).replace(/\./g, '');
-  const label = (entry.weather_text || '날씨').replace(/[·\s]+/g, '_').slice(0, 20);
-  const fname = `mikihoo_${label}_${date}.png`;
-
+  const fname = `mikihoo_채집물_${date}.png`;
   canvas.toBlob(blob => {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -421,25 +440,20 @@ async function exportEntryCard(entry) {
 }
 
 function wrapText(ctx, text, x, y, maxW, lineH) {
-  const words = text.split('');
-  let line = '';
-  let lineY = y;
-  const maxLines = 6;
-  let lineCount = 0;
-
-  for (let i = 0; i < words.length; i++) {
-    const test = line + words[i];
+  const chars = text.split('');
+  let line = '', curY = y;
+  for (let i = 0; i < chars.length; i++) {
+    const test = line + chars[i];
     if (ctx.measureText(test).width > maxW && line !== '') {
-      ctx.fillText(line, x, lineY);
-      line  = words[i];
-      lineY += lineH;
-      lineCount++;
-      if (lineCount >= maxLines) { ctx.fillText(line + '…', x, lineY); return; }
+      ctx.fillText(line, x, curY);
+      line = chars[i];
+      curY += lineH;
     } else {
       line = test;
     }
   }
-  if (line) ctx.fillText(line, x, lineY);
+  if (line) { ctx.fillText(line, x, curY); curY += lineH; }
+  return curY;
 }
 
 // ══════════════════════════════════════
