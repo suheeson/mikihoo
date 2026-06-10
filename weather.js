@@ -650,6 +650,79 @@ if (collectBtn) {
 
 // ══════════════════════════════════════
 // 8. 카드 PNG 익스포트
+
+function iconCodeFromWeatherText(text) {
+  if (!text) return null;
+  const desc = (text.split('·').pop() || '').trim();
+  if (/뇌우|천둥/.test(desc)) return '11d';
+  if (/이슬비|가랑비/.test(desc)) return '09d';
+  if (/비|소나기/.test(desc)) return '10d';
+  if (/눈|진눈깨비/.test(desc)) return '13d';
+  if (/안개|연무|박무|스모그|먼지|모래/.test(desc)) return '50d';
+  if (/흐림|overcast/.test(desc)) return '04d';
+  if (/구름 많음|broken/.test(desc)) return '04d';
+  if (/구름 조금|구름 약간|few clouds/.test(desc)) return '02d';
+  if (/구름|scattered/.test(desc)) return '03d';
+  if (/맑음|clear/.test(desc)) return '01d';
+  return null;
+}
+
+function drawWeatherIconCanvas(ctx, iconCode, x, y, size) {
+  if (!iconCode) return;
+  const base = iconCode.slice(0, 2);
+  const night = iconCode.endsWith('n');
+  const s = size / 24;
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(s, s);
+  ctx.lineWidth  = 1.5 / s;
+  ctx.lineCap    = 'round';
+  ctx.lineJoin   = 'round';
+
+  const p = d => { const path = new Path2D(d); ctx.stroke(path); };
+  const ln = (x1,y1,x2,y2) => { ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); };
+  const arc = (cx,cy,r,fill) => { ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); fill?ctx.fill():ctx.stroke(); };
+
+  switch (base) {
+    case '01':
+      night
+        ? p(`M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z`)
+        : (arc(12,12,4), ln(12,2,12,4), ln(12,20,12,22), ln(4.22,4.22,5.64,5.64),
+           ln(18.36,18.36,19.78,19.78), ln(2,12,4,12), ln(20,12,22,12),
+           ln(4.22,19.78,5.64,18.36), ln(18.36,5.64,19.78,4.22));
+      break;
+    case '02':
+      night
+        ? (p(`M13 17H5a4 4 0 1 1 3.93-5h4.07a3 3 0 1 1 0 6z`),
+           p(`M22 9.5A3.5 3.5 0 0 1 18.5 13 3.5 3.5 0 0 0 22 6a3.5 3.5 0 0 1 0 3.5z`))
+        : (p(`M13 17H5a4 4 0 1 1 3.93-5h4.07a3 3 0 1 1 0 6z`),
+           arc(19,8,2.5), ln(19,4,19,5.5), ln(22.5,8,21,8), ln(21.2,5.8,20.1,6.9));
+      break;
+    case '03':
+      p(`M17 18H7a5 5 0 1 1 4.9-6H17a3 3 0 0 1 0 6z`); break;
+    case '04':
+      p(`M16 19H6a4 4 0 1 1 3.9-5H16a3 3 0 0 1 0 6z`);
+      p(`M19.5 14h-.8A3 3 0 1 0 14 18.5`); break;
+    case '09':
+      p(`M20 17.58A5 5 0 0 0 18 8h-1.26A8 8 0 1 0 4 16.25`);
+      arc(8,20.5,1,true); arc(12,21.5,1,true); arc(16,20.5,1,true); break;
+    case '10':
+      p(`M20 17.58A5 5 0 0 0 18 8h-1.26A8 8 0 1 0 4 16.25`);
+      ln(8,19,6.5,23); ln(12,19,10.5,23); ln(16,19,14.5,23); break;
+    case '11':
+      p(`M19 16.9A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25`);
+      p(`M13 11L9 17L15 17L11 23`); break;
+    case '13':
+      ln(12,2,12,22); ln(2,12,22,12);
+      ln(4.93,4.93,19.07,19.07); ln(19.07,4.93,4.93,19.07);
+      arc(12,12,2); break;
+    case '50':
+      ln(3,8,21,8); ln(3,12,21,12); ln(3,16,21,16); break;
+  }
+
+  ctx.restore();
+}
 // ══════════════════════════════════════
 
 async function exportEntryCard(entry) {
@@ -732,9 +805,17 @@ async function exportEntryCard(entry) {
 
   // 날씨
   if (entry.weather_text) {
-    ctx.font      = `400 26px 'EB Garamond', serif`;
-    ctx.fillStyle = '#a8a89e';
-    ctx.fillText(entry.weather_text, PAD, curY);
+    const ICON_SIZE = 32;
+    ctx.font        = `400 26px 'EB Garamond', serif`;
+    ctx.fillStyle   = '#a8a89e';
+    ctx.strokeStyle = '#a8a89e';
+    const ic = iconCodeFromWeatherText(entry.weather_text);
+    if (ic) {
+      drawWeatherIconCanvas(ctx, ic, PAD, curY - 26, ICON_SIZE);
+      ctx.fillText(entry.weather_text, PAD + ICON_SIZE + 10, curY);
+    } else {
+      ctx.fillText(entry.weather_text, PAD, curY);
+    }
     curY += 48;
   } else {
     curY += 8;
