@@ -77,15 +77,14 @@
   function initParticles() {
     const pts = sampleParticles();
     particles = pts.map(p => {
-      const angle = Math.random() * Math.PI * 2;
-      const speed = 1.5 + Math.random() * 3.5;
-      const grey  = Math.random() > 0.5 ? 232 : 168; // #e8e4dc vs #a8a89e
+      const grey  = Math.random() > 0.5 ? 232 : 168;
       return {
         x: p.x, y: p.y,
         ox: p.x, oy: p.y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
+        vx: (Math.random() - 0.5) * 1.2,          // 좌우 약간만 흔들림
+        vy: 2.5 + Math.random() * 4,               // 아래로 낙하
         size: 1 + Math.random(),
+        delay: Math.random() * 0.35,               // 파티클별 낙하 시작 시차
         color: `rgb(${grey},${grey - 4},${grey - 12})`,
       };
     });
@@ -165,9 +164,11 @@
 
       if (particles) {
         particles.forEach(p => {
-          p.x = p.ox + p.vx * ease * fontSize * 0.8;
-          p.y = p.oy + p.vy * ease * fontSize * 0.8;
-          ctx.globalAlpha = Math.max(0, 1 - ease * 1.4);
+          const pt = Math.max(0, (t - p.delay) / (1 - p.delay));
+          const fall = pt * pt; // ease-in 낙하
+          p.x = p.ox + p.vx * pt * fontSize * 0.5;
+          p.y = p.oy + p.vy * fall * fontSize * 1.2;
+          ctx.globalAlpha = Math.max(0, 1 - pt * 1.3);
           ctx.fillStyle = p.color;
           ctx.fillRect(p.x, p.y, p.size, p.size);
         });
