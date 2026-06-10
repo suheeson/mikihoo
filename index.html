@@ -19,7 +19,7 @@
 
   <main class="main-list">
 
-    <!-- 관리자 패널 (?admin 일 때만 노출) -->
+    <!-- 관리자 패널 -->
     <section class="admin-panel" id="adminPanel" style="display:none;">
       <div id="loginBox">
         <div class="admin-label">관리자</div>
@@ -74,6 +74,19 @@
   <footer class="site-footer">
     <span>mikihoo &copy; 2026</span>
   </footer>
+
+  <!-- 포스트 상세 모달 -->
+  <div class="post-modal" id="postModal">
+    <button class="modal-close" id="modalClose">×</button>
+    <div class="modal-inner">
+      <img class="modal-img" id="modalImg" alt="" />
+      <div class="modal-body">
+        <div class="modal-date" id="modalDate"></div>
+        <div class="modal-title" id="modalTitle"></div>
+        <div class="modal-excerpt" id="modalExcerpt"></div>
+      </div>
+    </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="main.js"></script>
