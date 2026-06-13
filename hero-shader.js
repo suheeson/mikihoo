@@ -350,11 +350,23 @@ let pointerFine     = window.matchMedia('(pointer: fine)').matches;
 let pointerPresence = 0;   // eased 0→1 toward target (leave/end fades it out)
 let presenceTarget  = 0;
 
+// Normalize a pointer to canvas-relative UV [0,1]. getBoundingClientRect()
+// is CSS-px and already accounts for the header offset, page scroll, and any
+// transform — so x/y are measured from the canvas, not the window. Y is
+// flipped here (the ONLY place) to match the shader/video orientation
+// (pos.y=0 = screen bottom). Called fresh per event — rect is never cached.
+function getPointerUV(e) {
+  const rect = canvasEl.getBoundingClientRect();
+  const x = (e.clientX - rect.left) / rect.width;
+  const y = (e.clientY - rect.top)  / rect.height;
+  return { x, y: 1 - y };
+}
+
 function onPointerMove(e) {
+  if (!canvasEl) return;
   // pen counts as fine; touch is coarse; mouse is fine
   if (e.pointerType) pointerFine = (e.pointerType !== 'touch');
-  const nx = e.clientX / window.innerWidth;
-  const ny = 1.0 - e.clientY / window.innerHeight;
+  const { x: nx, y: ny } = getPointerUV(e);
   const dx = nx - rawMouse.x, dy = ny - rawMouse.y;
   mouseVelRaw = Math.sqrt(dx*dx + dy*dy);
   rawMouse.x  = nx;
@@ -639,9 +651,13 @@ function tick(ts) {
   mouseVelRaw *= 0.78;
   const mvel  = Math.min(mouseVelSm * 50, 1);
 
-  // Pointer reaction radius (px → per-axis UV so the region is circular in px)
+  // Pointer reaction radius: CSS px → per-axis UV by the canvas's CSS size
+  // (NOT window, NOT the DPR-scaled internal resolution) so the radius matches
+  // getPointerUV's units and the region is circular in pixels.
   const radiusPx = pointerFine ? P.pointer.radius.fine : P.pointer.radius.coarse;
-  const radiusUV = [radiusPx / window.innerWidth, radiusPx / window.innerHeight];
+  const cw = canvasEl.offsetWidth  || window.innerWidth;
+  const ch = canvasEl.offsetHeight || window.innerHeight;
+  const radiusUV = [radiusPx / cw, radiusPx / ch];
   // Presence: ease toward target over leaveFadeMs (smooth fade on leave/end)
   pointerPresence += (presenceTarget - pointerPresence)
                    * Math.min(1, dt / (P.pointer.leaveFadeMs / 1000));
