@@ -4,9 +4,8 @@
 //
 // Tone: the video is a STILL base (duotone + barely-there breath). The
 // particles and rare glitches are the lead visual. The pointer does not drag
-// light around — it parts the particle field. Clicking anywhere in the hero
-// silently requests the mic; granted, it eases audio reactivity into the
-// particles and glitches over ~1.5s. No explicit visual "wake" event.
+// light around — it parts the particle field. The only interaction is pointer
+// movement; the page is fully live on load.
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { Renderer, Program, Mesh, Triangle, Texture, Geometry }
@@ -59,29 +58,6 @@ const P = {
   // ── Scanline alignment glitch (particles snap to a row, then scatter) ───
   SCANLINE_RATE: 0.18,       // events/sec (~1 per 5.5s)
   SCANLINE_DUR:  0.45,       // seconds (short tick)
-
-  // ── Audio mapping (all gains tunable; effects ease in over easeInDuration)
-  audio: {
-    easeInDuration: 1.5,     // mic granted → reactivity ramps 0→1 (seconds)
-    rms: {
-      particleJitterGain:     0.030,  // RMS → per-particle micro jitter amplitude
-      particleSpeedGain:      1.60,   // RMS → drift speed multiplier
-      particleBrightnessGain: 0.85,   // RMS → particle alpha/brightness lift
-    },
-    bass: {
-      scatterGain:               1.40, // bass → field scatter amplitude
-      blockGlitchProbMultiplier: 2.00, // bass → video block-glitch rate ×
-    },
-    high: {
-      particleRgbSplitRatio: 0.35,    // treble → glitch fraction rises toward this
-      scanlineFreqMultiplier: 1.80,   // treble → scanline rate ×
-      videoRgbSplitGain:      0.0045, // treble → subtle video RGB split
-    },
-    transient: {
-      threshold:      0.060,  // onset detection: level jump above EMA
-      glitchBurstGain: 1.00,  // transient → one-shot glitch burst strength
-    },
-  },
 };
 // ─────────────────────────────────────────────────────────────────────────
 
@@ -157,7 +133,7 @@ uniform float uBlockGlitch;   // 0 or 1
 uniform float uBlockSeed;
 uniform vec2  uBlockCount;
 uniform float uBlockAmt;
-uniform float uVideoRgbSplit; // treble + block-driven, ≈0 idle
+uniform float uVideoRgbSplit; // baseline video RGB split (≈0; block glitch adds locally)
 
 varying vec2 vUv;
 
@@ -192,7 +168,7 @@ void main() {
     }
   }
 
-  // ── Sample with horizontal RGB split (≈0 unless treble/glitch) ─────────
+  // ── Sample with horizontal RGB split (≈0 unless block glitch) ──────────
   float r = texture2D(tVideo, clamp(videoUV(sampleUV + vec2(chroma,0.0)), 0.0, 1.0)).r;
   float g = texture2D(tVideo, clamp(videoUV(sampleUV),                    0.0, 1.0)).g;
   float b = texture2D(tVideo, clamp(videoUV(sampleUV - vec2(chroma,0.0)), 0.0, 1.0)).b;
@@ -236,11 +212,6 @@ uniform float uStreak;
 uniform float uGlitchFrac;
 uniform float uGlitchAmp;
 uniform float uPulseRate;
-uniform float uScatterAmt;   // bass + transient driven
-uniform float uExcite;       // RMS × ease
-uniform float uJitterGain;
-uniform float uSpeedGain;
-uniform float uBrightGain;
 uniform float uScanline;
 uniform float uScanlineY;
 uniform vec3  uShadowColor;
@@ -258,15 +229,11 @@ void main() {
   float lum  = texture2D(tVideo, texUV).r;
   vLum = lum;
 
-  // ── Autonomous noise-flow drift (speeds up with loudness) ────────────
-  float t  = uTime * (0.25 + aSpeed*0.35) * (1.0 + uExcite*uSpeedGain);
+  // ── Autonomous noise-flow drift ──────────────────────────────────────
+  float t  = uTime * (0.25 + aSpeed*0.35);
   float dx = snoise(uv*3.0 + vec2(t*0.30, aRand*10.0)) * uDrift;
   float dy = snoise(uv*3.0 + vec2(aRand*10.0, t*0.26)) * uDrift;
   vec2 pos = uv + vec2(dx, dy);
-
-  // ── RMS micro-jitter (whole field gets restless when loud) ───────────
-  pos += vec2(snoise(uv*42.0 + uTime*9.0 + aRand*7.0),
-              snoise(uv*42.0 - uTime*9.0)) * uExcite * uJitterGain;
 
   // ── Pointer repulsion — narrow region, smooth edge ───────────────────
   // Normalize the offset by per-axis UV radius so the region is a circle in
@@ -279,9 +246,6 @@ void main() {
   float push  = falloff * uPointerForce * uActive * uPointerActive;
   pos += dir * push;
   pos += dir * push * uMouseVel * uStreak;   // fast pointer → streak
-
-  // ── Bass scatter / transient burst ────────────────────────────────────
-  pos += vec2(snoise(uv*8.0 + uTime), snoise(uv*8.0 - uTime)) * uScatterAmt;
 
   // ── Glitch jump (RGB-split tick on a fraction of particles) ──────────
   float gWindow = step(aRand, uGlitchFrac);
@@ -303,9 +267,8 @@ void main() {
   vec3 cool = base * vec3(0.92, 0.98, 1.08);
   vColor = mix(cool, warm, aRand) * (0.8 + lum*0.6);
 
-  // ── Density: bright video → denser/brighter; loud → lifted ───────────
-  float bright = 1.0 + uExcite * uBrightGain;
-  vAlpha = uActive * smoothstep(0.10, 0.55, lum) * (0.5 + aRand*0.5) * bright;
+  // ── Density: bright video → denser/brighter; dark → faint ────────────
+  vAlpha = uActive * smoothstep(0.10, 0.55, lum) * (0.5 + aRand*0.5);
 
   vec2 clip = pos * 2.0 - 1.0;
   gl_PointSize = uPointSize * uDpr * (0.6 + lum*0.9);
@@ -333,11 +296,7 @@ void main() {
 }`;
 
 // ─── STATE ───────────────────────────────────────────────────────────────
-const STATE = { LIVE: 0, MIC: 1 };
-let state      = STATE.LIVE;
 let activeEase = 0;
-let audioEase  = 0;
-let micRequested = false;
 
 // ─── POINTER ─────────────────────────────────────────────────────────────
 const rawMouse = { x: 0.5, y: 0.5 };
@@ -380,79 +339,29 @@ window.addEventListener('pointerup',     e => { if (e.pointerType === 'touch') p
 window.addEventListener('pointercancel', () => { presenceTarget = 0; }, { passive: true });
 document.addEventListener('mouseleave',  () => { presenceTarget = 0; });
 
-// ─── AUDIO ────────────────────────────────────────────────────────────────
-let analyser, freqData, audioStream;
-let audioLevel = 0, audioBass = 0, audioHigh = 0;
-let emaLevel = 0, transient = 0;   // onset detection
-
-async function initAudio() {
-  if (micRequested) return;
-  micRequested = true;
-  if (!navigator.mediaDevices?.getUserMedia) return;
-  try {
-    audioStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-    const actx = new (window.AudioContext || window.webkitAudioContext)();
-    if (actx.state === 'suspended') await actx.resume();
-    const src = actx.createMediaStreamSource(audioStream);
-    analyser  = actx.createAnalyser();
-    analyser.fftSize = 256;
-    analyser.smoothingTimeConstant = 0.8;
-    src.connect(analyser);
-    freqData = new Uint8Array(analyser.frequencyBinCount);
-    state    = STATE.MIC;
-  } catch(_) { /* denied/unsupported — audio mapping stays 0 forever */ }
-}
-
-function updateAudio() {
-  if (!analyser || !freqData) return;
-  analyser.getByteFrequencyData(freqData);
-  let s = 0;
-  for (let i = 0; i < freqData.length; i++) s += (freqData[i]/255)**2;
-  audioLevel = Math.sqrt(s / freqData.length);
-  let b = 0;
-  for (let i = 0; i < 4; i++) b += freqData[i]/255;
-  audioBass = b / 4;
-  let h = 0, hN = freqData.length - 80;
-  for (let i = 80; i < freqData.length; i++) h += freqData[i]/255;
-  audioHigh = hN > 0 ? h / hN : 0;
-
-  // Transient / onset: level rising sharply above its slow EMA
-  const onset = audioLevel - emaLevel;
-  emaLevel += (audioLevel - emaLevel) * 0.20;
-  if (onset > P.audio.transient.threshold) transient = Math.min(1, transient + onset * 5);
-  transient *= 0.86;
-}
-
 // ─── GLITCH timing (video block + particle scanline) ───────────────────────
 let blockActive = 0, blockTimer = 0, blockSeed = 0;
 let scanline = 0, scanlineTimer = 0, scanlineY = 0.5;
 
-function maybeGlitch(dt, transientEff) {
-  // Video block glitch — bass & transient raise its rate
+function maybeGlitch(dt) {
+  // Video block glitch
   if (blockTimer > 0) {
     blockTimer -= dt;
     if (blockTimer <= 0) { blockActive = 0; blockTimer = 0; }
-  } else {
-    const bassMul = 1 + audioBass * audioEase * (P.audio.bass.blockGlitchProbMultiplier - 1);
-    const rate = P.BLOCK_GLITCH_RATE * bassMul + transientEff * 2.2;
-    if (Math.random() < rate * dt) {
-      blockActive = 1;
-      blockTimer  = P.BLOCK_GLITCH_DUR;
-      blockSeed   = Math.random() * 100;
-    }
+  } else if (Math.random() < P.BLOCK_GLITCH_RATE * dt) {
+    blockActive = 1;
+    blockTimer  = P.BLOCK_GLITCH_DUR;
+    blockSeed   = Math.random() * 100;
   }
-  // Particle scanline alignment — treble raises its rate
+  // Particle scanline alignment
   if (scanlineTimer > 0) {
     scanlineTimer -= dt;
     const k = Math.max(0, scanlineTimer / P.SCANLINE_DUR);
     scanline = Math.sin(k * Math.PI);          // ease in then out
     if (scanlineTimer <= 0) { scanline = 0; scanlineTimer = 0; }
-  } else {
-    const highMul = 1 + audioHigh * audioEase * (P.audio.high.scanlineFreqMultiplier - 1);
-    if (Math.random() < P.SCANLINE_RATE * highMul * dt) {
-      scanlineTimer = P.SCANLINE_DUR;
-      scanlineY     = 0.25 + Math.random() * 0.5;
-    }
+  } else if (Math.random() < P.SCANLINE_RATE * dt) {
+    scanlineTimer = P.SCANLINE_DUR;
+    scanlineY     = 0.25 + Math.random() * 0.5;
   }
 }
 
@@ -588,11 +497,6 @@ function initParticles() {
       uGlitchFrac:     { value: REDUCED ? 0 : P.PART_GLITCH_FRAC },
       uGlitchAmp:      { value: P.PART_GLITCH_AMP },
       uPulseRate:      { value: P.PART_PULSE_RATE },
-      uScatterAmt:     { value: 0 },
-      uExcite:         { value: 0 },
-      uJitterGain:     { value: P.audio.rms.particleJitterGain },
-      uSpeedGain:      { value: P.audio.rms.particleSpeedGain },
-      uBrightGain:     { value: P.audio.rms.particleBrightnessGain },
       uScanline:       { value: 0 },
       uScanlineY:      { value: 0.5 },
       uAlpha:          { value: P.PART_ALPHA },
@@ -637,12 +541,8 @@ function tick(ts) {
 
   if (!REDUCED) activeEase = Math.min(1, activeEase + dt / P.ACTIVE_EASE_DUR);
   else          activeEase = 0.6;
-  if (state === STATE.MIC && !REDUCED)
-    audioEase = Math.min(1, audioEase + dt / P.audio.easeInDuration);
 
-  updateAudio();
-  const transientEff = transient * audioEase * P.audio.transient.glitchBurstGain;
-  if (!REDUCED) maybeGlitch(dt, transientEff);
+  if (!REDUCED) maybeGlitch(dt);
   monitorFPS(dt);
 
   smMouse.x  += (rawMouse.x - smMouse.x) * P.MOUSE_INERTIA;
@@ -684,28 +584,19 @@ function tick(ts) {
   u.uActive.value       = activeEase;
   u.uBlockGlitch.value  = blockActive;
   u.uBlockSeed.value    = blockSeed;
-  u.uVideoRgbSplit.value = P.VIDEO_RGB_BASE
-                         + audioHigh * audioEase * P.audio.high.videoRgbSplitGain;
+  u.uVideoRgbSplit.value = P.VIDEO_RGB_BASE;
   u.uVideoUV.value      = videoUvTransform;
   renderer.render({ scene: mesh });
 
   // ── Particle uniforms ─────────────────────────────────────────────────
   if (particleMesh) {
     const pu = particleProgram.uniforms;
-    const baseFrac = REDUCED ? 0 : P.PART_GLITCH_FRAC;
-    let frac = baseFrac + audioHigh * audioEase * (P.audio.high.particleRgbSplitRatio - baseFrac);
-    frac = Math.min(0.6, frac + transientEff * 0.3);          // transient burst
-
     pu.uTime.value      = elapsed;
     pu.uActive.value    = activeEase;
     pu.uMouse.value     = [smMouse.x, smMouse.y];
     pu.uMouseVel.value  = mvel;
     pu.uPointerRadius.value = radiusUV;
     pu.uPointerActive.value = pointerActive;
-    pu.uExcite.value    = audioLevel * audioEase;
-    pu.uScatterAmt.value = audioBass * audioEase * P.audio.bass.scatterGain * 0.05
-                         + transientEff * 0.04;
-    pu.uGlitchFrac.value = frac;
     pu.uScanline.value  = scanline;
     pu.uScanlineY.value = scanlineY;
     pu.uVideoUV.value   = videoUvTransform;
@@ -729,7 +620,6 @@ document.addEventListener('visibilitychange', () => {
 // ─── Cleanup ──────────────────────────────────────────────────────────────
 window.addEventListener('beforeunload', () => {
   cancelAnimationFrame(rafId);
-  audioStream?.getTracks().forEach(t => t.stop());
 });
 
 // ─── Entry point ─────────────────────────────────────────────────────────
@@ -748,10 +638,6 @@ function init() {
 
   videoEl.addEventListener('loadedmetadata', computeVideoUV, { once: true });
   if (videoEl.videoWidth) computeVideoUV();
-
-  // Whole hero area silently requests mic
-  heroEl.addEventListener('click', () => { initAudio(); });
-  heroEl.addEventListener('touchend', () => { initAudio(); }, { passive: true });
 }
 
 init();
